@@ -1,0 +1,4 @@
+
+
+euphony:
+	cd euphony && ./build
