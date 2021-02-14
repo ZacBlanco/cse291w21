@@ -48,6 +48,7 @@ from semantics import semantics_types
 from utils import basetypes
 import options
 from enum import Enum
+import time
 
 _expr_to_str = exprs.expression_to_string
 _is_expr = exprs.is_expression
@@ -209,6 +210,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
 
         if restart_everytime or self.bunch_generator is None:
             self.restart_bunched_generator()
+        start = time.time()
         while True:
             success = self.generate_more_terms()
             if not success:
@@ -219,6 +221,9 @@ class EnumerativeTermSolverBase(TermSolverInterface):
             elif (self.stopping_condition == StoppingCondition.one_term_sufficiency
                     and self.one_full_signature):
                 return True
+            current = time.time()
+            if current - start > 45:
+                raise Exception("took too long generating....")
 
     def _default_generate_more_terms(self, transform_term=None):
         signature_to_term = self.signature_to_term
