@@ -1,0 +1,309 @@
+diff --git a/benchmarks/string/test/phone-5.sl b/benchmarks/string/test/phone-5.sl
+deleted file mode 100755
+index 1b4519b..0000000
+--- a/benchmarks/string/test/phone-5.sl
++++ /dev/null
+@@ -1,34 +0,0 @@
+-(set-logic SLIA)
+-(synth-fun f ((name String)) String
+-    ((Start String (ntString))
+-     (ntString String (name " " "+" "-" "."
+-(str.++ ntString ntString)
+-(str.replace ntString ntString ntString)
+-(str.at ntString ntInt)
+-(int.to.str ntInt)
+-(ite ntBool ntString ntString)
+-(str.substr ntString ntInt ntInt)
+-))
+-      (ntInt Int (0 1 2 3 4 5
+-(+ ntInt ntInt)
+-(- ntInt ntInt)
+-(str.len ntString)
+-(str.to.int ntString)
+-(str.indexof ntString ntString ntInt)
+-))
+-(ntBool Bool (true false
+-(= ntInt ntInt)
+-(str.prefixof ntString ntString)
+-(str.suffixof ntString ntString)
+-(str.contains ntString ntString)
+-))
+-))
+-(constraint (= (f "+106 769-858-438") "106"))
+-(constraint (= (f "+83 973-757-831") "83"))
+-(constraint (= (f "+62 647-787-775") "62"))
+-(constraint (= (f "+172 027-507-632") "172"))
+-(constraint (= (f "+72 001-050-856") "72"))
+-(constraint (= (f "+95 310-537-401") "95"))
+-(constraint (= (f "+6 775-969-238") "6"))
+-
+-(check-synth)
+diff --git a/bin/benchmarks.py b/bin/benchmarks.py
+old mode 100644
+new mode 100755
+index 5522549..e8d76c5
+--- a/bin/benchmarks.py
++++ b/bin/benchmarks.py
+@@ -373,7 +373,8 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
+         phog = None
+ 
+     term_solver = TermSolver(specification.term_signature, term_generator, stat_model=phog)
+-    term_solver.stopping_condition = termsolvers.StoppingCondition.one_term_sufficiency
++    # term_solver.stopping_condition = termsolvers.StoppingCondition.one_term_sufficiency
++    term_solver.stopping_condition = termsolvers.StoppingCondition.term_sufficiency
+     unifier = unifiers.NullUnifier(None, term_solver, synth_funs, syn_ctx, specification)
+ 
+     solver = solvers.Solver(syn_ctx)
+@@ -384,8 +385,11 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
+         verifier,
+         verify_term_solve=False
+     )
++
+     try:
+         solution = next(solutions)
++        # for solution in solutions:
++        #     print("Found a solution")
+     except StopIteration:
+         return "NO SOLUTION"
+     rewritten_solutions = rewrite_solution(synth_funs, solution, reverse_mapping=None)
+@@ -508,7 +512,7 @@ def make_solver(file_sexp, phog_file, rcfg_file):
+ 
+     synth_funs = list(synth_instantiator.get_functions().values())
+     specification, verifier = make_specification(synth_funs, theory, syn_ctx, constraints)
+-
++    print("Size of synth func instantiators: {}".format(len(synth_funs)))
+     solver_args = (
+             theory,
+             syn_ctx,
+@@ -610,6 +614,8 @@ def print_stat(benchmark_files, phog_file):
+ if __name__ == "__main__":
+     import argparse
+     import sys
++    import flamegraph
++    flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
+     sys.setrecursionlimit(10000)
+ 
+     argparser = argparse.ArgumentParser(description='Run ESolver with PHOG')
+diff --git a/bin/core/solvers.py b/bin/core/solvers.py
+index 91d271e..4fbf0d1 100644
+--- a/bin/core/solvers.py
++++ b/bin/core/solvers.py
+@@ -78,14 +78,15 @@ class Solver(object):
+             self.point_set.add(point)
+             self.points.append(point)
+ 
+-    def solve(self, generator_factory, term_solver, unifier, verifier, verify_term_solve=True):
++    def solve(self, generator_factory, term_solver, unifier, verifier, verify_term_solve=True, num_sols=1):
+         import time
+         # syn_ctx = self.syn_ctx
+         # spec = syn_ctx.get_specification()
+ 
+         time_origin = time.clock()
+-
+-        while (True):
++        cur_sols = 0 
++        solved = False
++        while (cur_sols < num_sols):
+             # print('________________')
+             # iterate until we have terms that are "sufficient"
+             success = term_solver.solve()
+@@ -93,7 +94,7 @@ class Solver(object):
+                 return None
+             # we now have a sufficient set of terms
+             # print('Term solve complete! ')
+-            # print([ _expr_to_str(term) for sig,term in term_solver.get_signature_to_term().items()])
++            print([ _expr_to_str(term) for sig,term in term_solver.get_signature_to_term().items()])
+ 
+             # Check term solver for completeness
+             if verify_term_solve:
+@@ -101,7 +102,7 @@ class Solver(object):
+             else:
+                 cexs = None
+ 
+-            # print('Term solve checked!')
++            print('Term solve checked!')
+             if cexs is None:
+                 unifier_state = unifier.unify()
+                 unification = next(unifier_state)
+@@ -109,13 +110,13 @@ class Solver(object):
+                 sol_or_cex = verifier.verify(unification)
+                 # print('Verification done!')
+             else:
+-                # print('Term solve incomplete!')
+                 sol_or_cex = cexs
+ 
+             if _is_expr(sol_or_cex):
+                 solution_found_at = time.clock() - time_origin
+-                print(len(self.points))
+-                #print('Solution Found at : %.2f sec\n' % solution_found_at)
++                # print(len(self.points))
++                cur_sols += 1
++                print('Solution Found at : %.2f sec\n' % solution_found_at)
+                 if self.report_additional_info:
+                     yield (sol_or_cex,
+                             unifier.last_dt_size,
+@@ -126,14 +127,20 @@ class Solver(object):
+                             len(self.points))
+                 else:
+                     yield sol_or_cex
+-                return
+-
+-            #for cex in sol_or_cex:
+-            #    print('ADDING POINT:', [p.value_object for p in cex])
+-            term_solver.add_points(sol_or_cex) # Term solver can add all points at once
+-            unifier.add_points(sol_or_cex)
+-            self.add_points(sol_or_cex)
+-            generator_factory.add_points(sol_or_cex)
++                print("===== SOLUTION FOUND =====")
++                solved = True
++                # return
++            
++            if not solved:
++                for cex in sol_or_cex:
++                    print('ADDING POINT:', [p.value_object for p in cex])
++                term_solver.add_points(sol_or_cex) # Term solver can add all points at once
++                unifier.add_points(sol_or_cex)
++                self.add_points(sol_or_cex)
++                generator_factory.add_points(sol_or_cex)
++            # else:
++            #     term_solver.reset_signature()
++
+             # print('________________')
+ 
+ 
+diff --git a/bin/phogs/phog.py b/bin/phogs/phog.py
+index fd9e0c3..0f41175 100644
+--- a/bin/phogs/phog.py
++++ b/bin/phogs/phog.py
+@@ -351,7 +351,7 @@ class Phog:
+             _,current_str = frontier.get()
+             (current, nts_addrs, (ph_vars, nts, current_expr)) = strrewrite_to_rewrite[current_str]
+             if len(nts) == 0:
+-                #print('%50s :\t %.2f' % (exprs.expression_to_string(current_expr), cost_so_far[current_str]), flush=True)
++                print('%50s :\t %.2f' % (exprs.expression_to_string(current_expr), cost_so_far[current_str]), flush=True)
+                 yield [current_expr]
+             else:
+                 assert (len(nts_addrs) > 0)
+diff --git a/bin/phogs/phog_utils.py b/bin/phogs/phog_utils.py
+index ca2290c..740a630 100644
+--- a/bin/phogs/phog_utils.py
++++ b/bin/phogs/phog_utils.py
+@@ -120,7 +120,7 @@ def get_history(expr, pick=None):
+                 new_addr.append(i)
+                 added.append((child, new_addr))
+             stack[0:0] = added
+-            # print(exprs.expression_to_string(history[-1][0]), ' ', history[-1][1])
++            #print(exprs.expression_to_string(history[-1][0]), ' ', history[-1][1])
+     return history
+ 
+ 
+diff --git a/bin/sphogs/sphog.py b/bin/sphogs/sphog.py
+index d826d0d..690f768 100644
+--- a/bin/sphogs/sphog.py
++++ b/bin/sphogs/sphog.py
+@@ -402,7 +402,7 @@ class SPhog:
+             _,current_str = frontier.get()
+             (current, nts_addrs, (ph_vars, nts, current_expr)) = strrewrite_to_rewrite[current_str]
+             if len(nts) == 0:
+-                #print('%50s :\t %.2f' % (exprs.expression_to_string(current_expr), cost_so_far[current_str]), flush=True)
++                print('%50s :\t %.2f' % (exprs.expression_to_string(current_expr), cost_so_far[current_str]), flush=True)
+                 yield [current_expr]
+             else:
+                 assert (len(nts_addrs) > 0)
+diff --git a/bin/sphogs/sphog_utils.py b/bin/sphogs/sphog_utils.py
+index 7c07c47..b418cd5 100644
+--- a/bin/sphogs/sphog_utils.py
++++ b/bin/sphogs/sphog_utils.py
+@@ -542,7 +542,7 @@ def get_history(expr, pick=None):
+                 new_addr.append(i)
+                 added.append((child, new_addr))
+             stack[0:0] = added
+-            # print(exprs.expression_to_string(history[-1][0]), ' ', history[-1][1])
++            print(exprs.expression_to_string(history[-1][0]), ' ', history[-1][1])
+     return history
+ 
+ 
+diff --git a/bin/termsolvers/termsolvers.py b/bin/termsolvers/termsolvers.py
+index 8f6d8e3..e6c156b 100644
+--- a/bin/termsolvers/termsolvers.py
++++ b/bin/termsolvers/termsolvers.py
+@@ -48,6 +48,7 @@ from semantics import semantics_types
+ from utils import basetypes
+ import options
+ from enum import Enum
++import time
+ 
+ _expr_to_str = exprs.expression_to_string
+ _is_expr = exprs.is_expression
+@@ -83,6 +84,12 @@ class TermSolverInterface(object):
+     def get_largest_term_size_enumerated(self):
+         return 0
+ 
++    def reset_signature(self):
++        self.signature_factory = BitSet.make_factory(len(self.points))
++        self.one_full_signature = False
++        self.signature_to_term = {}
++        self._do_complete_sig_to_term()
++
+     def add_points(self, new_points):
+         points = self.points
+         points.extend(new_points)
+@@ -150,7 +157,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
+         self.stat_model = stat_model
+         self.bunch_generator = None
+         self.max_term_size = 128
+-        self.stopping_condition = StoppingCondition.term_sufficiency
++        self.stopping_condition = StoppingCondition.one_term_sufficiency
+         self.full_signature = BitSet.make_factory(0)()
+         self.one_full_signature = False
+ 
+@@ -209,6 +216,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
+ 
+         if restart_everytime or self.bunch_generator is None:
+             self.restart_bunched_generator()
++        start = time.time()
+         while True:
+             success = self.generate_more_terms()
+             if not success:
+@@ -219,6 +227,9 @@ class EnumerativeTermSolverBase(TermSolverInterface):
+             elif (self.stopping_condition == StoppingCondition.one_term_sufficiency
+                     and self.one_full_signature):
+                 return True
++            current = time.time()
++            if current - start > 45:
++                raise Exception("took too long generating....")
+ 
+     def _default_generate_more_terms(self, transform_term=None):
+         signature_to_term = self.signature_to_term
+@@ -241,7 +252,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
+             if (sig in signature_to_term or sig.is_empty()) and (not options.use_phog()):
+                 continue
+             signature_to_term[sig] = term
+-
++            # print(self.full_signature)
+             # for sig,term in signature_to_term.items():
+             #     print(exprs.expression_to_string(term), ' : ', sig)
+             self.full_signature = self.full_signature | sig
+diff --git a/bin/unifiers/unifiers.py b/bin/unifiers/unifiers.py
+index 3f418e9..788f862 100644
+--- a/bin/unifiers/unifiers.py
++++ b/bin/unifiers/unifiers.py
+@@ -69,10 +69,17 @@ class UnifierInterface(object):
+         # we can trivially unify if there exists a term
+         # which satisfies the spec at all points
+         trivial_term = None
++        trivial_terms = []
++        print(len(self.term_solver.get_signature_to_term().items()))
+         for (sig, term) in self.term_solver.get_signature_to_term().items():
+             if (sig is None or sig.is_full()):
++                trivial_terms.append(term)
+                 trivial_term = term
+-                break
++                print("Possible solution: {}".format(_expr_to_str(term)))
++                # break
++            else:
++                print("non full solution: {}".format(_expr_to_str(term)))
++        # [ for term in trivial_terms]
+         return trivial_term
+ 
+ class EnumerativeDTUnifierBase(UnifierInterface):

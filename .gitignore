@@ -1,1 +1,4 @@
-**/__pycache_/**
+**/__pycache__/
+*.pyc
+**/z3/build/
+*.o
