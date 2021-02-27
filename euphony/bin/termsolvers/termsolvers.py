@@ -84,6 +84,12 @@ class TermSolverInterface(object):
     def get_largest_term_size_enumerated(self):
         return 0
 
+    def reset_signature(self):
+        self.signature_factory = BitSet.make_factory(len(self.points))
+        self.one_full_signature = False
+        self.signature_to_term = {}
+        self._do_complete_sig_to_term()
+
     def add_points(self, new_points):
         points = self.points
         points.extend(new_points)
@@ -119,6 +125,7 @@ class TermSolverInterface(object):
 
     def _default_compute_term_signature(self, term, old_signature=None):
         points = self.points
+        # print("COMPUTING TERM SIG")
         # num_points = len(points)
 
         retval = self.signature_factory()
@@ -131,7 +138,9 @@ class TermSolverInterface(object):
 
         # num_new_points = retval.size_of_universe()
         new_points = points[start_index:]
+        # print("start idx: {} -- print newpts: {}, termsig: {}".format(start_index, new_points, self.term_signature))
         for i, v in enumerate(self.term_signature(term, new_points), start_index):
+            # print("IV RETVAL: {} ::: {} ::: {} ::: {}".format(i, v, retval, term))
             if v:
                 retval.add(i)
         # print(_expr_to_str(term), ': ', str(retval))
@@ -184,6 +193,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
         # HACK HACK HACK: BunchGenerator bunch_size should be initialized properly.
         # If bunch_size is larger than the number of point_distinct predicates, it goes into an infinite loop
         # 
+        # print("restarting bunched_gen: {}".format(self.term_generator))
         self.bunch_generator = enumerators.BunchedGenerator(self.term_generator,
                                                             # self.max_term_size, len(self.points) * 2)
                                                             self.max_term_size, 1)
@@ -192,12 +202,12 @@ class EnumerativeTermSolverBase(TermSolverInterface):
             self.bunch_generator_state = self.stat_model.generate(self.term_generator.factory._compute_signature, self.points)
         else:
             self.bunch_generator_state = self.bunch_generator.generate()
+            # print("AAAA::::{}".format(self.bunch_generator_state))
         # clearning up for collecting data at next cegis iter
         if self.stat_model is not None:
             self.stat_model.clear_data()
 
     def _default_solve(self, restart_everytime):
-
         num_points = len(self.points)
         if (num_points == 0): # No points, any term will do
             return self._trivial_solve()
@@ -222,7 +232,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
                     and self.one_full_signature):
                 return True
             current = time.time()
-            if current - start > 45:
+            if current - start > 1000:
                 raise Exception("took too long generating....")
 
     def _default_generate_more_terms(self, transform_term=None):
@@ -230,6 +240,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
         bunch_generator_state = self.bunch_generator_state
         try:
             bunch = next(bunch_generator_state)
+            # print(["{}".format(term) for term in bunch])
         except StopIteration:
             return False
 
@@ -243,10 +254,10 @@ class EnumerativeTermSolverBase(TermSolverInterface):
 
             # w/o indistinguishability
             # do not apply indis when using PHOG (indistinguishability is done in phog.py)
-            if (sig in signature_to_term or sig.is_empty()) and (not options.use_phog()):
+            if (sig.is_empty()) and (not options.use_phog()):
+                # print("continuing....")
                 continue
             signature_to_term[sig] = term
-
             # for sig,term in signature_to_term.items():
             #     print(exprs.expression_to_string(term), ' : ', sig)
             self.full_signature = self.full_signature | sig
@@ -254,7 +265,6 @@ class EnumerativeTermSolverBase(TermSolverInterface):
                 self.one_full_signature = True
                 # print statistics when using PHOG
                 if options.use_phog() and self.stat_model is not None: self.stat_model.print_statistics()
-
         return True
 
 
@@ -298,7 +308,7 @@ class PointDistinctTermSolver(EnumerativeTermSolverBase):
         return self._default_generate_more_terms(transform_term=None)
 
     def solve(self):
-        return self._default_solve(restart_everytime=True)
+        return self._default_solve(restart_everytime=False)
 
 # TermSolver = PointlessTermSolver
 # TermSolver = PointDistinctTermSolver

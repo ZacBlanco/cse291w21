@@ -61,6 +61,7 @@ from sphogs.sphog import SPhog
 #from phogs import rcfg
 import pickle
 
+_expr_to_str = exprs.expression_to_string
 
 def get_pbe_valuations(constraints, synth_fun):
     # valuations : ConstantExpression tuple * ConstantExpression (= inputs * output)
@@ -374,6 +375,7 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
 
     term_solver = TermSolver(specification.term_signature, term_generator, stat_model=phog)
     term_solver.stopping_condition = termsolvers.StoppingCondition.one_term_sufficiency
+    # term_solver.stopping_condition = termsolvers.StoppingCondition.term_sufficiency
     unifier = unifiers.NullUnifier(None, term_solver, synth_funs, syn_ctx, specification)
 
     solver = solvers.Solver(syn_ctx)
@@ -382,10 +384,15 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
         term_solver,
         unifier,
         verifier,
-        verify_term_solve=False
+        verify_term_solve=False,
+        num_sols=options.numsols
     )
     try:
-        solution = next(solutions)
+        # solution = next(solutions)
+        # print("FOUND A SOLUTION 1")
+        for sol in solutions:
+            solution = sol
+            print("solution ||| {}".format(sol))
     except StopIteration:
         return "NO SOLUTION"
     rewritten_solutions = rewrite_solution(synth_funs, solution, reverse_mapping=None)
@@ -508,7 +515,7 @@ def make_solver(file_sexp, phog_file, rcfg_file):
 
     synth_funs = list(synth_instantiator.get_functions().values())
     specification, verifier = make_specification(synth_funs, theory, syn_ctx, constraints)
-
+    # print("Size of synth func instantiators: {}".format(len(synth_funs)))
     solver_args = (
             theory,
             syn_ctx,
@@ -610,9 +617,13 @@ def print_stat(benchmark_files, phog_file):
 if __name__ == "__main__":
     import argparse
     import sys
+    import flamegraph
+    
+    flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
     sys.setrecursionlimit(10000)
 
     argparser = argparse.ArgumentParser(description='Run ESolver with PHOG')
+    argparser.add_argument('-n', '--num_sols', type=int, default=5)
     argparser.add_argument('-phog', type=str, default='')
     argparser.add_argument('-sphog', type=str, default='')
     argparser.add_argument('-rcfg', type=str, default='')
@@ -643,6 +654,7 @@ if __name__ == "__main__":
     options.allex = args.allex
     options.stat = args.stat
     options.noheuristic = args.noheuristic
+    options.numsols = args.num_sols
 
     options.sphog = (len(sphog_file) > 0)
     if options.stat:

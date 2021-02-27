@@ -324,6 +324,7 @@ class PointDistinctGenerator(GeneratorBase):
     def generate(self):
         self.generated = 0
         while True:
+            # print("place: {}, size: {}, generated: {}".format(self.placeholder, self.size, self.generated))
             ret = self.factory.get_from(self.placeholder, self.size, self.generated)
             if ret is None:
                 break
@@ -386,7 +387,7 @@ class PointDistinctGeneratorFactory(GeneratorFactoryBase):
                     profile = tuple([ evaluation.evaluate_expression(c, self.eval_ctx) for c in app.children ])
                     point_profile.append(profile)
                 self.point_profiles.append(point_profile)
-        self.clear_caches()
+        # self.clear_caches()
 
     def _initialize_base_generator(self, placeholder, size):
         self.cache[(placeholder, size)] = []
@@ -500,11 +501,11 @@ class BunchedGenerator(GeneratorBase):
         sub_generator_object.set_size(current_size)
         sub_generator_state = sub_generator_object.generate()
         finished = False
-
         while(True):
             retval = [None] * bunch_size
             current_index = 0
             while (current_index < bunch_size):
+                # print("bunched generator: bunch_size: {}, current_index: {}, current_obj_size: {}".format(bunch_size, current_index, sub_generator_state))
                 try:
                     retval[current_index] = next(sub_generator_state)
                 except StopIteration:

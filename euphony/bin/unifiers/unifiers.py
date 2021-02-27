@@ -69,11 +69,32 @@ class UnifierInterface(object):
         # we can trivially unify if there exists a term
         # which satisfies the spec at all points
         trivial_term = None
+        trivial_terms = []
+        # print(len(self.term_solver.get_signature_to_term().items()))
         for (sig, term) in self.term_solver.get_signature_to_term().items():
             if (sig is None or sig.is_full()):
+                trivial_terms.append(term)
                 trivial_term = term
-                break
+                # print("found possible solution: {}".format(_expr_to_str(term)))
+                # break
+            else:
+                # print("found non full solution: {}".format(_expr_to_str(term)))
+                pass
+        # [ for term in trivial_terms]
         return trivial_term
+    
+    def _try_trivial_unify_all(self):
+        # we can trivially unify if there exists a term
+        # which satisfies the spec at all points
+        # print(len(self.term_solver.get_signature_to_term().items()))
+        for (sig, term) in self.term_solver.get_signature_to_term().items():
+            if (sig is None or sig.is_full()):
+                # print("found possible solution: ||| {} ||| {}".format(sig, term))
+                yield term
+                # break
+            else:
+                pass
+                # print("found non full solution ||| {} ||| {}".format(sig, term))
 
 class EnumerativeDTUnifierBase(UnifierInterface):
     def __init__(self, pred_generator, term_solver, syn_ctx):
@@ -213,6 +234,11 @@ class NullUnifier(UnifierInterface):
 
     def add_points(self, points):
         pass
+
+    def unify_all(self):
+        for term in self._try_trivial_unify_all():
+            yield ("TERM", term)
+            
 
     def unify(self):
         triv = self._try_trivial_unification()

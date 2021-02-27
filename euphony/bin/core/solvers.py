@@ -78,14 +78,16 @@ class Solver(object):
             self.point_set.add(point)
             self.points.append(point)
 
-    def solve(self, generator_factory, term_solver, unifier, verifier, verify_term_solve=True):
+    def solve(self, generator_factory, term_solver, unifier, verifier, verify_term_solve=True, num_sols=4):
         import time
         # syn_ctx = self.syn_ctx
         # spec = syn_ctx.get_specification()
 
         time_origin = time.clock()
-
-        while (True):
+        cur_sols = 0 
+        solved = False
+        sols = set()
+        while (len(sols) < num_sols):
             # print('________________')
             # iterate until we have terms that are "sufficient"
             success = term_solver.solve()
@@ -99,41 +101,59 @@ class Solver(object):
             if verify_term_solve:
                 cexs = verifier.verify_term_solve(list(term_solver.get_signature_to_term().values()))
             else:
+                # print("NOT verifying term solve")
                 cexs = None
-
+            
+            last_sol = None
             # print('Term solve checked!')
             if cexs is None:
-                unifier_state = unifier.unify()
-                unification = next(unifier_state)
-                # print('Unification done!')
-                sol_or_cex = verifier.verify(unification)
-                # print('Verification done!')
+                for unifier_state in unifier.unify_all():
+                    # unification = next(unifier_state)
+                    # print('Unification done!')
+                    sol_or_cex = verifier.verify(unifier_state)
+                    # print("Unified....: {}".format(sol_or_cex))
+                    if _is_expr(sol_or_cex) and sol_or_cex not in sols:
+                        last_sol = sol_or_cex
+                        sols.add(sol_or_cex)
+                        solution_found_at = time.clock() - time_origin
+                        print('Solution Found at : {:.2f} sec ::::: {} \n'.format(solution_found_at, _expr_to_str(sol_or_cex)))
+                        if self.report_additional_info:
+                            yield (sol_or_cex,
+                                    unifier.last_dt_size,
+                                    term_solver.get_num_distinct_terms(),
+                                    unifier.get_num_distinct_preds(),
+                                    term_solver.get_largest_term_size_enumerated(),
+                                    unifier.get_largest_pred_size_enumerated(),
+                                    len(self.points))
+                        else:
+                            yield sol_or_cex
+                        print("===== SOLUTION FOUND =====")
+                        solved = True
+                    elif not _is_expr(sol_or_cex):
+                        print("NOT EXPR")
+                        # for cex in sol_or_cex:
+                            # print('ADDING POINT:', [p.value_object for p in cex])
+                        term_solver.add_points(sol_or_cex) # Term solver can add all points at once
+                        unifier.add_points(sol_or_cex)
+                        self.add_points(sol_or_cex)
+                        generator_factory.add_points(sol_or_cex)
+                    else:
+                        pass
+                        # print("got {} - solution set: {}".format(sol_or_cex, ["{}".format(sol) for sol in sols]))
+                        # print("THIS IS AN ERROR. Make sure they solver (euphony/eusolver) will generate new unique solutions after the first is found")
+                        # print("Unifier: {}".format(unifier))
+                        # print("Verifier: {}".format(verifier))
+                        # print("TermSolver: {}".format(term_solver))
+                        # print("We fked: is_expr: {}, sols: {}".format(_is_expr(sol_or_cex), ["{}".format(sol) for sol in sols]))
+
+
+                    # print('Verification done!')
             else:
-                # print('Term solve incomplete!')
                 sol_or_cex = cexs
+                
+            # else:
+            #     term_solver.reset_signature()
 
-            if _is_expr(sol_or_cex):
-                solution_found_at = time.clock() - time_origin
-                print(len(self.points))
-                #print('Solution Found at : %.2f sec\n' % solution_found_at)
-                if self.report_additional_info:
-                    yield (sol_or_cex,
-                            unifier.last_dt_size,
-                            term_solver.get_num_distinct_terms(),
-                            unifier.get_num_distinct_preds(),
-                            term_solver.get_largest_term_size_enumerated(),
-                            unifier.get_largest_pred_size_enumerated(),
-                            len(self.points))
-                else:
-                    yield sol_or_cex
-                return
-
-            #for cex in sol_or_cex:
-            #    print('ADDING POINT:', [p.value_object for p in cex])
-            term_solver.add_points(sol_or_cex) # Term solver can add all points at once
-            unifier.add_points(sol_or_cex)
-            self.add_points(sol_or_cex)
-            generator_factory.add_points(sol_or_cex)
             # print('________________')
 
 

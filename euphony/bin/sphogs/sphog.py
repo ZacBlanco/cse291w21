@@ -402,7 +402,7 @@ class SPhog:
             _,current_str = frontier.get()
             (current, nts_addrs, (ph_vars, nts, current_expr)) = strrewrite_to_rewrite[current_str]
             if len(nts) == 0:
-                #print('%50s :\t %.2f' % (exprs.expression_to_string(current_expr), cost_so_far[current_str]), flush=True)
+                # print('%50s :\t %.2f' % (exprs.expression_to_string(current_expr), cost_so_far[current_str]), flush=True)
                 yield [current_expr]
             else:
                 assert (len(nts_addrs) > 0)
