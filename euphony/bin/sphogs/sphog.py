@@ -258,7 +258,7 @@ def phogFromFile(statFileName, for_eusolver, for_pred_exprs, ret_type, specifica
 
 class SPhog:
 
-    def __init__(self, grammar, file, ret_type, specification, for_eusolver=False, for_pred_exprs=False, ref_grammar=None):
+    def __init__(self, grammar, file, ret_type, specification, options=options, for_eusolver=False, for_pred_exprs=False, ref_grammar=None):
         instrs, stat_map = phogFromFile(file, for_eusolver, for_pred_exprs, ret_type, specification, grammar, ref_grammar)
         self.stat_map = stat_map
         self.instrs = instrs
@@ -270,6 +270,9 @@ class SPhog:
         self.m = compute_m(self.stat_map, grammar, self.fetchop_func)
         self.m_sens = compute_m_sens(self.m, self.stat_map, grammar, self.fetchop_func)
         # self.print_phog()
+        self.inc = options.inc
+        self.noheuristic = options.noheuristic
+        self.noindis = options.noindis
 
     def print_phog(self):
         print('Instr : ', self.instrs)
@@ -395,7 +398,7 @@ class SPhog:
         num_points = len(points)
         while not frontier.empty():
             # incremental search with indistinguishability
-            if len(points) > num_points and options.inc:
+            if len(points) > num_points and self.inc:
                 incremental_update(ignored, frontier)
 
             num_points = len(points)
@@ -428,12 +431,12 @@ class SPhog:
 
                     if next_str not in cost_so_far or new_cost < cost_so_far[next_str]:
                         cost_so_far[next_str] = new_cost
-                        future_cost = 0.0 if options.noheuristic else heuristic_sens(self.fetchop_func, m, m_sens, instrs, next_nts_addrs, next_nts, next_expr)
+                        future_cost = 0.0 if self.noheuristic else heuristic_sens(self.fetchop_func, m, m_sens, instrs, next_nts_addrs, next_nts, next_expr)
                         priority = new_cost + future_cost
                         strrewrite_to_priority[next_str] = priority
 
                         # get representative of eq class which current rewrite belongs to
-                        if not options.noindis:
+                        if not self.noindis:
                             normalized_next_str = normalize_rewritestr(next_expr, strrewrite_to_normstrrewrite,
                                                                        compute_term_signature,
                                                                        grammar.non_terminals)
@@ -449,10 +452,10 @@ class SPhog:
                             normstrrewrite_to_strrewrite[normalized_next_str] = next_str
                             frontier.put(rep, priority, replace=next_str)
                             # rep is ignored and replaced by new one.
-                            if rep != next_str and options.inc: ignored.append(rep)
+                            if rep != next_str and self.inc: ignored.append(rep)
                         else:
                             # next_str is ignored because it is worse than the current representative.
-                            if options.inc:
+                            if self.inc:
                                 ignored.append(next_str)
 
         return

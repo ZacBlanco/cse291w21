@@ -116,7 +116,7 @@ class Solver(object):
                         last_sol = sol_or_cex
                         sols.add(sol_or_cex)
                         solution_found_at = time.clock() - time_origin
-                        print('Solution Found at : {:.2f} sec ::::: {} \n'.format(solution_found_at, _expr_to_str(sol_or_cex)))
+                        # print('Solution Found at : {:.2f} sec ::::: {} \n'.format(solution_found_at, _expr_to_str(sol_or_cex)))
                         if self.report_additional_info:
                             yield (sol_or_cex,
                                     unifier.last_dt_size,
@@ -127,10 +127,9 @@ class Solver(object):
                                     len(self.points))
                         else:
                             yield sol_or_cex
-                        print("===== SOLUTION FOUND =====")
                         solved = True
                     elif not _is_expr(sol_or_cex):
-                        print("NOT EXPR")
+                        # print("NOT EXPR")
                         # for cex in sol_or_cex:
                             # print('ADDING POINT:', [p.value_object for p in cex])
                         term_solver.add_points(sol_or_cex) # Term solver can add all points at once

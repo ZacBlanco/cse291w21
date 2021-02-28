@@ -21,6 +21,8 @@ stat = False
 # heuristic?
 noheuristic = False
 
+numsols = 1
+
 def set_solver(arg):
     global solver
     if arg == 'eusolver':

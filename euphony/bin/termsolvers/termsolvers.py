@@ -70,10 +70,13 @@ class StoppingCondition(Enum):
 #     return False
 
 class TermSolverInterface(object):
-    def __init__(self):
+    def __init__(self, options):
         self.points = []
         self.current_largest_term_size = 0
         self.signature_to_term = {}
+        self.noindis = options.noindis
+        self.use_phog = options.use_phog()
+        self.inc = options.inc
 
     def get_signature_to_term(self):
         return self.signature_to_term
@@ -153,8 +156,8 @@ class TermSolverInterface(object):
         raise basetypes.AbstractMethodError('TermSolverInterface.generate_more_terms()')
 
 class EnumerativeTermSolverBase(TermSolverInterface):
-    def __init__(self, term_signature, stat_model=None):
-        super().__init__()
+    def __init__(self, term_signature, options=options, stat_model=None):
+        super().__init__(options)
         self.term_signature = term_signature
         # statistical model to guide search
         self.stat_model = stat_model
@@ -215,7 +218,7 @@ class EnumerativeTermSolverBase(TermSolverInterface):
         signature_to_term = self.signature_to_term
 
         # no restart (incremental search in using PHOG)
-        if (options.inc or options.noindis) and options.use_phog():
+        if (self.inc or self.noindis) and self.use_phog:
             restart_everytime = False
 
         if restart_everytime or self.bunch_generator is None:
@@ -249,12 +252,12 @@ class EnumerativeTermSolverBase(TermSolverInterface):
                 term = transform_term(term)
             sig = self._compute_term_signature(term)
             # collecting data
-            if self.stat_model is not None and options.use_phog():
+            if self.stat_model is not None and self.use_phog:
                 self.stat_model.add_for_statistics(term)
 
             # w/o indistinguishability
             # do not apply indis when using PHOG (indistinguishability is done in phog.py)
-            if (sig.is_empty()) and (not options.use_phog()):
+            if (sig.is_empty()) and (not self.use_phog):
                 # print("continuing....")
                 continue
             signature_to_term[sig] = term
@@ -264,14 +267,14 @@ class EnumerativeTermSolverBase(TermSolverInterface):
             if sig.is_full():
                 self.one_full_signature = True
                 # print statistics when using PHOG
-                if options.use_phog() and self.stat_model is not None: self.stat_model.print_statistics()
+                if self.use_phog and self.stat_model is not None: self.stat_model.print_statistics()
         return True
 
 
 
 class PointlessTermSolver(EnumerativeTermSolverBase):
-    def __init__(self, term_signature, term_generator):
-        super().__init__(term_signature)
+    def __init__(self, term_signature, term_generator, options=options):
+        super().__init__(term_signature, options=options)
         self.term_generator = term_generator
         self.eval_cache = {}
         self.monotonic_expr_id = 0
@@ -296,8 +299,8 @@ class PointlessTermSolver(EnumerativeTermSolverBase):
 
 
 class PointDistinctTermSolver(EnumerativeTermSolverBase):
-    def __init__(self, term_signature, term_generator, stat_model=None):
-        super().__init__(term_signature, stat_model=stat_model)
+    def __init__(self, term_signature, term_generator, options=options, stat_model=None):
+        super().__init__(term_signature, options=options, stat_model=stat_model)
         assert type(term_generator.factory) is enumerators.PointDistinctGeneratorFactory
         self.term_generator = term_generator
 

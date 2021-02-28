@@ -128,7 +128,7 @@ def rewrite_solution(synth_funs, solution, reverse_mapping):
     if len(synth_funs) == 1:
         sols = [solution]
     else:
-        # The solution will be a comma operator combination of solution 
+        # The solution will be a comma operator combination of solution
         # to each function
         sols = solution.children
 
@@ -170,7 +170,7 @@ def make_specification(synth_funs, theory, syn_ctx, constraints):
     # constraints : exprs.exprs.FunctionExpression list
     # XXX : cnf converter and lia converter are the bottlenecks.
     # temporary treatment for now : does not convert to CNF
-    # XXX : cannot solve STR without cnf conversion. I reverted it. 
+    # XXX : cannot solve STR without cnf conversion. I reverted it.
     if not expr_transforms.is_single_invocation(constraints, theory, syn_ctx):
         specification = specifications.MultiPointSpec(syn_ctx.make_function_expr('and', *constraints),
                 syn_ctx, synth_funs)
@@ -218,7 +218,7 @@ class UnsuitableSolverException(Exception):
         return "[ERROR]: UnsuitableSolverException %s" % self.message
 
 
-def lia_unification_solver(theory, syn_ctx, synth_funs, grammar_map, specification, verifier, phog_file):
+def lia_unification_solver(theory, syn_ctx, synth_funs, grammar_map, specification, verifier, phog_file, options=options):
     if theory != 'LIA':
         raise UnsuitableSolverException('LIA Unification Solver: Not LIA theory')
     if any([sf.range_type != exprtypes.IntType() for sf in synth_funs ]):
@@ -226,7 +226,7 @@ def lia_unification_solver(theory, syn_ctx, synth_funs, grammar_map, specificati
     if not specification.is_pointwise():
         raise UnsuitableSolverException('LIA Unification Solver: Not pointwise spec')
 
-    okay, massaging = full_lia_grammars(grammar_map) 
+    okay, massaging = full_lia_grammars(grammar_map)
     if not okay:
         raise UnsuitableSolverException('LIA Unification Solver: Could not get LIA full grammar')
 
@@ -244,11 +244,11 @@ def lia_unification_solver(theory, syn_ctx, synth_funs, grammar_map, specificati
     final_solution = rewrite_solution(synth_funs, solution, reverse_mapping=None)
     final_solution = lia_massager.massage_full_lia_solution(syn_ctx, synth_funs, final_solution, massaging)
     if final_solution is None:
-        raise UnsuitableSolverException('LIA Unification Solver: Could not massage back solution')  
+        raise UnsuitableSolverException('LIA Unification Solver: Could not massage back solution')
     return final_solution
 
 
-def std_unification_solver(theory, syn_ctx, synth_funs, grammar_map, specification, verifier, phog_file):
+def std_unification_solver(theory, syn_ctx, synth_funs, grammar_map, specification, verifier, phog_file, options=options):
     if len(synth_funs) > 1:
         raise UnsuitableSolverException("DT Unification Solver: Multi-function unification not supported")
     if specification.is_multipoint:
@@ -354,7 +354,7 @@ def augment_grammar(grammar, rcfg_file):
 
 
 
-def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, verifier, phog_file):
+def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, verifier, phog_file, options=options):
     if len(synth_funs) != 1:
         raise UnsuitableSolverException("Classic esolver for multi-function disable due to bugs")
     assert len(synth_funs) == 1
@@ -367,13 +367,13 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
     term_generator = grammar.to_generator(generator_factory)
 
     # init for using PHOG
-    phog = SPhog(grammar, phog_file, synth_funs[0].range_type, specification) if options.use_sphog() else \
-        Phog(grammar, phog_file, synth_funs[0].range_type)
+    phog = SPhog(grammar, phog_file, synth_funs[0].range_type, specification, options=options) if options.use_sphog() else \
+        Phog(grammar, phog_file, synth_funs[0].range_type, options=options)
     if phog.stat_map is None:
         print('No model available for this problem. We use the classic ESolver ...')
         phog = None
 
-    term_solver = TermSolver(specification.term_signature, term_generator, stat_model=phog)
+    term_solver = TermSolver(specification.term_signature, term_generator, stat_model=phog, options=options)
     term_solver.stopping_condition = termsolvers.StoppingCondition.one_term_sufficiency
     # term_solver.stopping_condition = termsolvers.StoppingCondition.term_sufficiency
     unifier = unifiers.NullUnifier(None, term_solver, synth_funs, syn_ctx, specification)
@@ -387,14 +387,18 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
         verify_term_solve=False,
         num_sols=options.numsols
     )
+
     try:
         # solution = next(solutions)
-        # print("FOUND A SOLUTION 1")
+        rewritten_sols = []
         for sol in solutions:
             solution = sol
-            print("solution ||| {}".format(sol))
+            # print("solution ||| {}".format(sol))
+            rewritten_sols.append(rewrite_solution(synth_funs, solution, reverse_mapping=None))
+        return rewritten_sols
     except StopIteration:
         return "NO SOLUTION"
+
     rewritten_solutions = rewrite_solution(synth_funs, solution, reverse_mapping=None)
     return rewritten_solutions
 
@@ -459,7 +463,7 @@ def get_specification(file_sexp):
     return specification
 
 
-def make_solver(file_sexp, phog_file, rcfg_file):
+def make_solver(file_sexp, phog_file, rcfg_file, options=options):
     benchmark_tuple = parser.extract_benchmark(file_sexp)
     (
             theories,
@@ -523,17 +527,20 @@ def make_solver(file_sexp, phog_file, rcfg_file):
             grammar_map,
             specification,
             verifier,
-            phog_file
+            phog_file,
+            options
             )
 
     for solver_name, solver in solvers:
         try:
-            #print("Trying solver:", solver_name)
+            # print("Trying solver:", solver_name)
             final_solutions = solver(*solver_args)
             if final_solutions == "NO SOLUTION":
                 print("(fail)")
             else:
-                print_solutions(synth_funs, final_solutions)
+                # print(final_solutions)
+                # print_solutions(synth_funs, final_solutions)
+                return final_solutions
             break
         except UnsuitableSolverException as exception:
             pass #print(exception)
@@ -545,7 +552,7 @@ def print_solutions(synth_funs, final_solutions):
     for sf, sol in zip(synth_funs, final_solutions):
         fp_infos = []
         for v in sf.get_named_vars():
-            v_name = v.variable_info.variable_name 
+            v_name = v.variable_info.variable_name
             v_type = v.variable_info.variable_type.print_string()
             fp_infos.append((v_name, v_type))
         fp_infos_strings = [ '(%s %s)' % (n, t) for (n, t) in fp_infos ]
@@ -618,17 +625,16 @@ if __name__ == "__main__":
     import argparse
     import sys
     import flamegraph
-    
+
     flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
     sys.setrecursionlimit(10000)
 
     argparser = argparse.ArgumentParser(description='Run ESolver with PHOG')
-    argparser.add_argument('-n', '--num_sols', type=int, default=5)
+    argparser.add_argument('-n', '--num_sols', type=int, default=1)
     argparser.add_argument('-phog', type=str, default='')
     argparser.add_argument('-sphog', type=str, default='')
     argparser.add_argument('-rcfg', type=str, default='')
     argparser.add_argument('-allex', action='store_true')
-    argparser.add_argument('-noindis', action='store_true')
     argparser.add_argument('-noheuristic', action='store_true')
     argparser.add_argument('-inc', action='store_true')
     argparser.add_argument('-stat', action='store_true')
@@ -649,7 +655,7 @@ if __name__ == "__main__":
     phog_file = args.phog
     sphog_file = args.sphog
     rcfg_file = args.rcfg
-    options.noindis = args.noindis
+    options.noindis = True
     options.inc = args.inc
     options.allex = args.allex
     options.stat = args.stat
