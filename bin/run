@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+EUPHONY_HOME="${DIR}/../euphony"
+
+PYTHON="${EUPHONY_HOME}/thirdparty/Python-3.5.1/python"
+export Z3_LIBRARY_PATH="$EUPHONY_HOME/thirdparty/z3/build/python"
+export PYTHONPATH="${PYTHONPATH}:${EUPHONY_HOME}/bin:${EUPHONY_HOME}/thirdparty/libeusolver/build:${EUPHONY_HOME}/thirdparty/z3/build/python" 
+if [ -z "${PYTHON}" ]; then
+	echo "python3 not found"
+else
+	 "${PYTHON}" "${DIR}/../neuralnet/lib.py" $@
+fi
+
