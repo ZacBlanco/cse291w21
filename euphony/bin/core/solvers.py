@@ -84,7 +84,7 @@ class Solver(object):
         # spec = syn_ctx.get_specification()
 
         time_origin = time.clock()
-        cur_sols = 0 
+        cur_sols = 0
         solved = False
         sols = set()
         while (len(sols) < num_sols):
@@ -103,7 +103,7 @@ class Solver(object):
             else:
                 # print("NOT verifying term solve")
                 cexs = None
-            
+
             last_sol = None
             # print('Term solve checked!')
             if cexs is None:
@@ -149,7 +149,7 @@ class Solver(object):
                     # print('Verification done!')
             else:
                 sol_or_cex = cexs
-                
+
             # else:
             #     term_solver.reset_signature()
 

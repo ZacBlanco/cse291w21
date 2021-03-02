@@ -81,6 +81,7 @@ def evaluate_expression_on_stack(expr_object, eval_context):
             if value is not None:
                 eval_context.push(value)
             else:
+                print("Failed to lookup: {}".format(expr_object))
                 raise basetypes.UnboundLetVariableError()
         else:
             eval_context.push(eval_context.valuation_map[o].value_object)
@@ -104,7 +105,8 @@ def evaluate_expression_on_stack(expr_object, eval_context):
 def evaluate_expression_raw(expr_object, eval_context):
     # print('Trying to evaluate', exprs.expression_to_string(expr_object))
     # for f, i in eval_context.interpretation_map.items():
-    #     print('\t', exprs.expression_to_string(i))
+        # print('\t', exprs.expression_to_string(i))
+    # print(eval_context)
     try:
         evaluate_expression_on_stack(expr_object, eval_context)
         retval = eval_context.peek()
@@ -176,7 +178,7 @@ class EvaluationContext(object):
 
     def set_valuation_map(self, valuation_map):
         if len(valuation_map) > 0 and type(valuation_map[0]) != exprs.Value:
-            raise Exception
+            raise Exception("valuation map size must be > 0 ({}) and index 0 type must be exprs.Value ({})".format(len(valuation_map), type(valuation_map[0])))
         self.valuation_map = valuation_map
 
     def clear_valuation_map(self):
@@ -188,6 +190,15 @@ class EvaluationContext(object):
         else:
             unknown_function_id = unknown_function_or_unknown_function_id
         self.interpretation_map[unknown_function_id] = interpretation
+
+    def __str__(self):
+        return str({
+            'eval_stack_size': self.eval_stack_size,
+            'eval_stack_top': self.eval_stack_top,
+            'valuation_map': self.valuation_map,
+            'interpretation_map': self.interpretation_map,
+            'let_variable_stack': self.let_variable_stack
+        })
 
 
 def test_evaluation():

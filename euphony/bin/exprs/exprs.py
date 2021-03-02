@@ -64,8 +64,11 @@ class ExpressionKinds(IntEnum):
     function_expression = 4
 
 
-_VariableExpression = collections.namedtuple('VariableExpression',
-                                             ['expr_kind', 'variable_info', 'expr_id'])
+class _VariableExpression(collections.namedtuple('VariableExpression',
+                                             ['expr_kind', 'variable_info', 'expr_id'])):
+    def __str__(self):
+        return expression_to_string(self)
+
 
 class _FormalParameterExpression(collections.namedtuple('FormalParameterExpression',
                                                     ['expr_kind',
@@ -74,7 +77,7 @@ class _FormalParameterExpression(collections.namedtuple('FormalParameterExpressi
                                                      'parameter_position',
                                                      'expr_id'])):
     def __str__(self):
-        return expression_to_string(self) 
+        return expression_to_string(self)
 
 _ConstantExpression = collections.namedtuple('ConstantExpression',
                                              ['expr_kind', 'value_object', 'expr_id'])
@@ -82,7 +85,7 @@ _ConstantExpression = collections.namedtuple('ConstantExpression',
 
 class _FunctionExpression(collections.namedtuple('FunctionExpression', ['expr_kind', 'function_info', 'children', 'expr_id'])):
     def __str__(self):
-        return expression_to_string(self) 
+        return expression_to_string(self)
 
 Value = collections.namedtuple('Value', ['value_object', 'value_type'])
 

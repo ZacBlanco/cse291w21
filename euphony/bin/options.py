@@ -22,6 +22,7 @@ stat = False
 noheuristic = False
 
 numsols = 1
+rewrite = True
 
 def set_solver(arg):
     global solver

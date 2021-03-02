@@ -142,6 +142,7 @@ def rewrite_solution(synth_funs, solution, reverse_mapping):
         sol = exprs.substitute_all(sol, substitute_pairs)
         rewritten_solutions.append(sol)
 
+    print("rewriting: {} as {}".format(solution, [str(x) for x in rewritten_solutions]))
     return rewritten_solutions
 
 
@@ -394,7 +395,8 @@ def classic_esolver(theory, syn_ctx, synth_funs, grammar_map, specification, ver
         for sol in solutions:
             solution = sol
             # print("solution ||| {}".format(sol))
-            rewritten_sols.append(rewrite_solution(synth_funs, solution, reverse_mapping=None))
+            newsol = rewrite_solution(synth_funs, solution, reverse_mapping=None) if options.rewrite else [solution]
+            rewritten_sols.append(newsol)
         return rewritten_sols
     except StopIteration:
         return "NO SOLUTION"
