@@ -3,3 +3,15 @@ Soybean Farming CAN, Soybean Farming
 Soybean Farming, Soybean Farming
 Oil Extraction US, Oil Extraction
 Fishing, Fishing
+AIX 5.1, 5.1
+VMware ESX Server 3.5.0 build-110268, 3.5
+Linux Linux 2.6 Linux, 2.6
+Red Hat Enterprise AS 4 <2.6-78.0.13.ELlargesmp>, 2.6
+Microsoft <R> Windows <R> 2000 Advanced Server 1.0, 1.0
+Microsoft Windows XP Win2008R2 6.1.7601, 6.1
+01/15/2013, 01/2013
+03/07/2011, 03/2011
+05/09/2009, 05/2009
+Tire Pressure ABC123873 Monitor, ABC123873
+Oil Life ABC849999999021 gauge, ABC849999999021
+Air conditioner GHF211 maintenance, GHF211
