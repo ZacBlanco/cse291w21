@@ -2,14 +2,22 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+PYTHON_DEPS="${DIR}/pyenv"
 EUPHONY_HOME="${DIR}/../euphony"
-
-PYTHON="${EUPHONY_HOME}/thirdparty/Python-3.5.1/python"
-export Z3_LIBRARY_PATH="$EUPHONY_HOME/thirdparty/z3/build/python"
-export PYTHONPATH="${PYTHONPATH}:${EUPHONY_HOME}/bin:${EUPHONY_HOME}/thirdparty/libeusolver/build:${EUPHONY_HOME}/thirdparty/z3/build/python" 
+# PYTHON="${EUPHONY_HOME}/thirdparty/Python-3.5.1/python"
+PYTHON="$(which python3)"
 if [ -z "${PYTHON}" ]; then
 	echo "python3 not found"
-else
-	 "${PYTHON}" "${DIR}/../neuralnet/lib.py" $@
+fi
+
+export Z3_LIBRARY_PATH="$EUPHONY_HOME/thirdparty/z3/build/python"
+export PYTHONPATH="${PYTHONPATH}:${EUPHONY_HOME}/bin:${EUPHONY_HOME}/thirdparty/libeusolver/build:${EUPHONY_HOME}/thirdparty/z3/build/python:${PYTHON_DEPS}"
+
+if [[ ! -d "${PYTHON_DEPS}" ]]; then
+	pip3 install -r requirements.txt -t "${PYTHON_DEPS}" > /dev/null
+fi
+
+if [ ! -z "${PYTHON}" ]; then
+	"${PYTHON}" "${DIR}/../neuralnet/lib.py" $@
 fi
 

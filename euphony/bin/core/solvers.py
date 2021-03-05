@@ -83,7 +83,7 @@ class Solver(object):
         # syn_ctx = self.syn_ctx
         # spec = syn_ctx.get_specification()
 
-        time_origin = time.clock()
+        time_origin = time.process_time()
         cur_sols = 0
         solved = False
         sols = set()
@@ -115,7 +115,7 @@ class Solver(object):
                     if _is_expr(sol_or_cex) and sol_or_cex not in sols:
                         last_sol = sol_or_cex
                         sols.add(sol_or_cex)
-                        solution_found_at = time.clock() - time_origin
+                        solution_found_at = time.process_time() - time_origin
                         # print('Solution Found at : {:.2f} sec ::::: {} \n'.format(solution_found_at, _expr_to_str(sol_or_cex)))
                         if self.report_additional_info:
                             yield (sol_or_cex,

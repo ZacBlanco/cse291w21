@@ -2,3 +2,5 @@
 *.pyc
 **/z3/build/
 *.o
+bin/pyenv
+.spec.tmp

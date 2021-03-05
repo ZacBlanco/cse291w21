@@ -626,9 +626,7 @@ def print_stat(benchmark_files, phog_file):
 if __name__ == "__main__":
     import argparse
     import sys
-    import flamegraph
 
-    flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
     sys.setrecursionlimit(10000)
 
     argparser = argparse.ArgumentParser(description='Run ESolver with PHOG')
