@@ -1,9 +1,13 @@
 import os
 import shutil
 import sys
+import random
+
+import numpy as np
 
 import benchmarks
 import options
+import string_builder
 
 from argparse import ArgumentParser
 
@@ -109,7 +113,59 @@ def generate_distinguishing_input(current_spec):
         current specification.
 
     '''
-    raise NotImplementedError("sorry, input generation is not implemented")
+    file_sexp = parser.sexpFromFile(current_spec)
+    benchmark_tuple = parser.extract_benchmark(file_sexp)
+    (
+            theories,
+            syn_ctx,
+            synth_instantiator,
+            macro_instantiator,
+            uf_instantiator,
+            constraints,
+            grammar_map,
+            forall_vars_map,
+            default_grammar_sfs
+            ) = benchmark_tuple
+    inputs = []
+    for constraint in constraints:
+        inputs.append(constraint.children[0].children[0].value_object.value_object)
+    import string_builder
+    inputs_r = [string_builder.RString(inp) for inp in inputs]
+
+    print_grid = lambda x: [print(item) for item in x]
+    def distances(input_list, distfunc):
+        dists = []
+        for x in input_list:
+            # print(x)
+            # print(x.groupstr)
+            curr_dists = []
+            for y in input_list:
+                curr_dists.append(distfunc(x, y))
+            dists.append(curr_dists)
+        # print_grid(dists)
+        return dists
+
+
+    # find the metric which varies the least between all the examples
+    char_dist  = distances(inputs_r, lambda x, y: x.orig_distance(y))
+    class_dist = distances(inputs_r, lambda x, y: x.class_distance(y))
+    group_dist = distances(inputs_r, lambda x, y: x.group_distance(y))
+    vals = {
+        'char': char_dist,
+        'class': class_dist,
+        'group': group_dist
+    }
+    stats = {}
+    for key in vals:
+        val = vals[key]
+        tril = np.tril(np.array(val))
+        mu = tril.mean()
+        std = tril.std()
+        stats[key] = string_builder.TextStats(mu, std)
+        # print("{}: mean: {}; std: {}".format(key, mu, std))
+    stat_set = string_builder.EditStatSet(stats['char'], stats['class'], stats['group'])
+    mutated = random.sample(inputs_r, 1)[0].generate_mutation(stat_set)
+    return mutated
 
 def classify_outputs(input, programs, outputs, current_spec):
     '''This classifies program evaluation outputs and returns a dictionary
@@ -125,20 +181,6 @@ def classify_outputs(input, programs, outputs, current_spec):
     '''
     raise NotImplementedError('output classification is not yet implemented')
 
-def add_constraint_to_spec(current_spec, input, output):
-    '''Adds a new input+output constraint to a given spec file
-
-    Arguments:
-        - current_spec (str): The path to the current spec file
-        - input (str): The input part of the new constraint
-        - output (str): The output part of the new constraint
-
-    Returns:
-        - None
-
-    '''
-    raise NotImplementedError("adding constraint to file not")
-
 def rank_programs(programs, m):
     '''Ranks a given set of programs with probability that it is a "correct" program
 
@@ -152,6 +194,35 @@ def rank_programs(programs, m):
     return programs[:m]
 
     raise NotImplementedError("program ranking not yet implemented")
+
+def add_constraint_to_spec(current_spec, inputs, outputs):
+    '''Adds a new input+output constraint to a given spec file
+
+    Arguments:
+        - current_spec (str): The path to the current spec file
+        - inputs (str): The input part of the new constraint
+        - outputs (str): The output part of the new constraint
+
+    Returns:
+        - None
+
+    '''
+
+    current_spec_lines = []
+    with open(current_spec, 'r') as f:
+        current_spec_lines = f.readlines()
+
+        constraint_begin = None
+        for i in range(len(current_spec_lines)):
+            if '(constraint (= (f "' in current_spec_lines[i]:
+                constraint_begin = i
+                break
+        if constraint_begin == None:
+            raise Exception("Couldn't find proper location to put new constraint in spec")
+        current_spec_lines.insert(i + 1, '(constraint (= (f "{}") "{}"))\n'.format(inputs, outputs))
+
+    with open(current_spec, 'w') as f:
+        f.writelines(current_spec_lines)
 
 
 def test():
@@ -177,16 +248,42 @@ def test():
         dists = []
         for x in input_list:
             print(x)
+            # print(x.groupstr)
             curr_dists = []
             for y in input_list:
                 curr_dists.append(distfunc(x, y))
             dists.append(curr_dists)
         print_grid(dists)
+        return dists
 
-    import textdistance
-    distances(inputs_r, lambda x, y: x.distance(y))
 
-    distances(inputs, lambda x, y: textdistance.hamming(x, y))
+    # find the metric which varies the least between all the examples
+    char_dist  = distances(inputs_r, lambda x, y: x.orig_distance(y))
+    class_dist = distances(inputs_r, lambda x, y: x.class_distance(y))
+    group_dist = distances(inputs_r, lambda x, y: x.group_distance(y))
+    vals = {
+        'char': char_dist,
+        'class': class_dist,
+        'group': group_dist
+    }
+    stats = {}
+    for key in vals:
+        val = vals[key]
+        tril = np.tril(np.array(val))
+        mu = tril.mean()
+        std = tril.std()
+        stats[key] = string_builder.TextStats(mu, std)
+        print("{}: mean: {}; std: {}".format(key, mu, std))
+    stat_set = string_builder.EditStatSet(stats['char'], stats['class'], stats['group'])
+    print("MUTATED: {}".format(random.sample(inputs_r, 1)[0].generate_mutation(stat_set)))
+
+
+    # once finding the least-varying metric, choose the type of modification
+    # to make to an existing example.
+    # Types of modifications
+    # 1. single character addition/deletion/edit (within existing group)
+    # 2. character class addition/edit/insert
+    # 3. group addition/deletion/edit
 
     for sol in sols:
         print("Testing program: {}".format(sol))
@@ -195,11 +292,12 @@ def test():
             print('input: "{}" ---- output: "{}" ({})'.format(test_input, output, type(output)))
 
 def main():
+    # test()
     parser = ArgumentParser()
     parser.add_argument("-f", help="filename to generate solutions for", default='./euphony/benchmarks/string/test/phone-5-test.sl')
-    parser.add_argument("-n", help="number of solutions to generate", default=1)
+    parser.add_argument("-n", help="number of solutions to generate", default=1, type=int)
     parser.add_argument("-i", help="number of iterations to perform", default=5)
-    parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=1)
+    parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=1, type=int)
 
     args = parser.parse_args()
 
@@ -212,7 +310,7 @@ def main():
     shutil.copyfile(args.f, tmp_input_file)
 
     # initial input specification file
-    input_spec = args.f
+    input_spec = tmp_input_file
     # number of candidate programs to generate each iteration
     num_progs = args.n
     top_progs = args.m
@@ -225,12 +323,14 @@ def main():
         ranked_programs = rank_programs(candidate_programs, top_progs)
         # 2. we now need to generate a distinguishing candidate input, not part of the current input spec
         distinguishing_input = generate_distinguishing_input(input_spec)
+        print("new distinguishing input: {}".format(distinguishing_input))
         # 3. With the distinguishing input now available, execute all of the candidate programs on the input
         candidate_outputs = [evaluate(expression, distinguishing_input, synth_file=input_spec) for expression in ranked_programs]
         # 4. Execute the neural oracle to get the probability of the most likely correct output
-        ranked_outputs = classify_outputs(distinguishing_input, candidate_programs, candidate_outputs, input_spec)
+        ranked_outputs = candidate_outputs
+        # ranked_outputs = classify_outputs(distinguishing_input, candidate_programs, candidate_outputs, input_spec)
         # 5. Add the new input/output example to the specification
-        input_spec = add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
+        add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
         # Loop and continue to refine by generating more examples...
 
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy
 from urllib.request import urlopen
 import scipy.optimize
@@ -66,7 +68,7 @@ def train():
 
 def feature(datum1,datum2):
   feat = [0]*2*len(words)
-  
+
   for w in list(datum1):
     if w in words:
       feat[wordId[w]] += 1

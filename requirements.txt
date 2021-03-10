@@ -1,3 +1,5 @@
-textdistance
+textdistance[extras]
 scipy
 nltk
+sklearn
+numpy

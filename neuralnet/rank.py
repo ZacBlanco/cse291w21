@@ -37,7 +37,7 @@ for i in f2:
 print(programs_f)
 
 def train():
-    '''Given the positive and negatvie sample path
+    '''Given the positive and negative sample path
     Returns:
         classifier model
     '''
@@ -89,22 +89,22 @@ def train():
     """
     X1 = [feature(d1, d2) for (d1, d2) in zip(specs, programs)]
     y1 = [[1] for d in programs]
-    
+
     X2 = [feature(d1, d2) for (d1, d2) in zip(specs, programs_f)]
     y2 = [[0] for d in programs_f]
     X=X1+X2
     y=y1+y2
     clf = linear_model.Ridge(1.0, fit_intercept=False)  # MSE + 1.0 l2
     clf.fit(X, y)
-    
+
 # Save---format as pkl
     joblib.dump(clf,'train_rank.pkl')
  # Load
 
     return clf
-    
+
 def feature(datum1,datum2):
-  
+
   feat = [0]*3*len(words)
   inputs=[]
   outputs=[]
@@ -112,23 +112,23 @@ def feature(datum1,datum2):
   for i in datum1:
         inputs.append(i.split("; ")[0])
         outputs.append(i.split("; ")[1])
- 
+
   for w in list(inputs):
     if w in words:
       feat[wordId[w]] += 1
-    
+
   for w in list(outputs):
     if w in words:
       feat[len(words)+wordId[w]] += 1
-    
+
   for w in list(datum2):
     if w in words:
       feat[2*len(words)+wordId[w]] += 1
-    
+
   feat.append(1) #offset
   #print(feat)
   return feat
-  
+
 def test (inputs,output):
     if os.path.isfile('train_rank.pkl'):
         model = joblib.load('train_rank.pkl')
