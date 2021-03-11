@@ -1,21 +1,17 @@
-#!/usr/bin/env python3
-
 import numpy
 from urllib.request import urlopen
-import scipy.optimize
-import random
-from collections import defaultdict
-import nltk
-import string
-from nltk.stem.porter import *
 from sklearn import linear_model
-
+import os
+import joblib
+import os.path
+from collections import defaultdict
 m = []
 n = []
 a = []
 b = []
-t = numpy.loadtxt(r'positive.txt', delimiter='\n', dtype=str)
-ne = numpy.loadtxt(r'negative.txt', delimiter='\n', dtype=str)
+
+t = numpy.loadtxt(r'neuralnet/positive.txt', delimiter='\n', dtype=str)
+ne = numpy.loadtxt(r'neuralnet/negative.txt', delimiter='\n', dtype=str)
 # print(t)
 # print(t)
 for i in t:
@@ -61,6 +57,7 @@ def train():
     clf = linear_model.Ridge(1.0, fit_intercept=False)  # MSE + 1.0 l2
     clf.fit(X, y)
     theta = clf.coef_
+    joblib.dump(clf,'train_classifier.pkl')
     return clf
     # Regression
     # theta,residuals,rank,s = numpy.linalg.lstsq(X, y)
@@ -68,7 +65,7 @@ def train():
 
 def feature(datum1,datum2):
   feat = [0]*2*len(words)
-
+  
   for w in list(datum1):
     if w in words:
       feat[wordId[w]] += 1
@@ -79,14 +76,29 @@ def feature(datum1,datum2):
   #print(feat)
   return feat
 
-def test (model,input,output):
-    f=[feature(d1, d2) for (d1, d2) in zip(input, output)]
+def test (input,output):
+    if os.path.isfile('train_classifier.pkl'):
+        model = joblib.load('train_classifier.pkl')
+        #print("load estimator")
+    else:
+        model=train()
+    #print(input)
+    #print(output)
+    t=[]
+    r=[]
+    for o in output:
+        t.append(o)
+        f=[feature(d1, d2) for (d1, d2) in zip(input, t)]
+        result=model.predict(f)[0]
+        t=[]
+        r.append(result[0])
     #f=feature(input,output)
-    return model.predict(f)[0]
+    #print(r)
+    return r
 # Regularized regression
 def main():
-    model=train()
-    print(test(model,["nitm US"], ["nitm"]))
+    #model=train()
+    print(test(["nitm US"], ["ni"]))
 #print(predictions)
 #f=feature("+156 6563 324","156") #0.07162274
 #f=feature("nitm US","nitm")

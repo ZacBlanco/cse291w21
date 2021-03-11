@@ -16,6 +16,8 @@ from exprs.evaluation import EvaluationContext
 from exprs.exprs import Value
 from exprs.exprtypes import StringType
 from exprs.evaluation import evaluate_expression_raw
+import classifier
+import rank
 
 def get_string_solutions(input_file, num_sols=1):
     '''Returns a set of FunctionExpressions representing solutions from the
@@ -94,6 +96,7 @@ def evaluate(expr, input, synth_file='./euphony/benchmarks/string/test/phone-5-t
             ) = benchmark_tuple
     # We should only have one grammar, so just grab the only key to this map.
     # The type of the object is a SynthFun
+    #print(constraints)
     synth_fun = list(grammar_map.keys())[0]
     # Pass this into the interpretation along with the expression we're
     # attempting to evaluate, or else we'll get an UnboundLetException
@@ -129,9 +132,10 @@ def generate_distinguishing_input(current_spec):
     inputs = []
     for constraint in constraints:
         inputs.append(constraint.children[0].children[0].value_object.value_object)
+    #print(inputs)
     import string_builder
     inputs_r = [string_builder.RString(inp) for inp in inputs]
-
+    #print(inputs_r)
     print_grid = lambda x: [print(item) for item in x]
     def distances(input_list, distfunc):
         dists = []
@@ -167,21 +171,34 @@ def generate_distinguishing_input(current_spec):
     mutated = random.sample(inputs_r, 1)[0].generate_mutation(stat_set)
     return mutated
 
-def classify_outputs(input, programs, outputs, current_spec):
+def classify_outputs(input, outputs):
     '''This classifies program evaluation outputs and returns a dictionary
     mapping each program to the probability its output is correct.
 
     Arguments:
         - input (str): The input string used for each program evaluation
-        - programs (list): The list of programs
         - outputs (list): a list of evaluated outputs for each program
 
     Returns:
         - (list) an ordered list of outputs by highest probability that the output was correct.
     '''
-    raise NotImplementedError('output classification is not yet implemented')
+    
+    clist=[]
+    clist=classifier.test(input,outputs)
+    o=outputs[clist.index(max(clist))]
+    d=dict(zip(outputs,clist))
+    #print(d)
+    a1 = sorted(d.items(),key = lambda x:x[1],reverse = True)
+    #print(a1)
+    sample_key_list = []
 
-def rank_programs(programs, m):
+    for item in a1:
+        sample_key_list.append(item[0])
+    #print(sample_key_list)
+    return sample_key_list
+    #raise NotImplementedError('output classification is not yet implemented')
+
+def rank_programs(current_spec, programs, m):
     '''Ranks a given set of programs with probability that it is a "correct" program
 
     Arguments:
@@ -191,7 +208,29 @@ def rank_programs(programs, m):
     Returns:
         - list: A list of the top (m) most likely programs
     '''
-    return programs[:m]
+    specs=get_constraints(current_spec)
+    #print(specs)
+    #print(programs)
+    inputs=[]
+    for i in specs:
+        inputs.append(i)
+    ps=[]
+    for i in programs:
+        ps.append(str(i))
+    rlist=rank.test(inputs,ps)
+    print(rlist)
+    
+    d=dict(zip(programs,rlist))
+    #print(d)
+    a1 = sorted(d.items(),key = lambda x:x[1],reverse = True)
+    #print(a1)
+    sample_key_list = []
+
+    for item in a1:
+        sample_key_list.append(item[0])
+    
+    return sample_key_list[:m]
+    #return programs[:m]
 
     raise NotImplementedError("program ranking not yet implemented")
 
@@ -223,7 +262,41 @@ def add_constraint_to_spec(current_spec, inputs, outputs):
 
     with open(current_spec, 'w') as f:
         f.writelines(current_spec_lines)
+def get_constraints(current_spec):
+    '''Generates a new distinguishing input which is not a part of the existing
+    specification
 
+    Arguments:
+        - current_spec (str): The specification for the problem including the
+        existing constraints for the problem.
+
+    Returns:
+        - list: contains all the specifications
+
+    '''
+    file_sexp = parser.sexpFromFile(current_spec)
+    benchmark_tuple = parser.extract_benchmark(file_sexp)
+    (
+            theories,
+            syn_ctx,
+            synth_instantiator,
+            macro_instantiator,
+            uf_instantiator,
+            constraints,
+            grammar_map,
+            forall_vars_map,
+            default_grammar_sfs
+            ) = benchmark_tuple
+    inputs = []
+    vals= []
+    for constraint in constraints:
+        inputs.append(constraint.children[0].children[0].value_object.value_object)
+        vals.append(constraint.children[1].value_object.value_object)
+    result=[]
+    for i in range(0,len(inputs)):
+        result.append(inputs[i]+'; '+vals[i])
+    #print(result)
+    return result
 
 def test():
     parser = ArgumentParser()
@@ -295,9 +368,9 @@ def main():
     # test()
     parser = ArgumentParser()
     parser.add_argument("-f", help="filename to generate solutions for", default='./euphony/benchmarks/string/test/phone-5-test.sl')
-    parser.add_argument("-n", help="number of solutions to generate", default=1, type=int)
+    parser.add_argument("-n", help="number of solutions to generate", default=3, type=int)
     parser.add_argument("-i", help="number of iterations to perform", default=5)
-    parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=1, type=int)
+    parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=3, type=int)
 
     args = parser.parse_args()
 
@@ -320,19 +393,25 @@ def main():
         # 1. generate up to N programs
         candidate_programs = get_string_solutions(input_spec, num_sols=num_progs)
         # 1a. rank the N programs and take the top M programs
-        ranked_programs = rank_programs(candidate_programs, top_progs)
+        ranked_programs = rank_programs(input_spec,candidate_programs, top_progs)
+        
         # 2. we now need to generate a distinguishing candidate input, not part of the current input spec
         distinguishing_input = generate_distinguishing_input(input_spec)
-        print("new distinguishing input: {}".format(distinguishing_input))
+        #print("new distinguishing input: {}".format(distinguishing_input))
+        #distinguishing_input="+4 769-858-438"
         # 3. With the distinguishing input now available, execute all of the candidate programs on the input
         candidate_outputs = [evaluate(expression, distinguishing_input, synth_file=input_spec) for expression in ranked_programs]
+        #print(candidate_outputs)
+        #evaluate(ranked_programs[0], distinguishing_input, synth_file=input_spec)
+        #get_constraints(input_spec)
+        #candidate_outputs=['7','4','1','44']
         # 4. Execute the neural oracle to get the probability of the most likely correct output
-        ranked_outputs = candidate_outputs
+        ranked_outputs = classify_outputs(distinguishing_input, candidate_outputs)
         # ranked_outputs = classify_outputs(distinguishing_input, candidate_programs, candidate_outputs, input_spec)
         # 5. Add the new input/output example to the specification
         add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
         # Loop and continue to refine by generating more examples...
-
+        
 
 
 
