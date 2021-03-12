@@ -182,7 +182,7 @@ def classify_outputs(input, outputs):
     Returns:
         - (list) an ordered list of outputs by highest probability that the output was correct.
     '''
-    
+
     clist=[]
     clist=classifier.test(input,outputs)
     o=outputs[clist.index(max(clist))]
@@ -218,8 +218,8 @@ def rank_programs(current_spec, programs, m):
     for i in programs:
         ps.append(str(i))
     rlist=rank.test(inputs,ps)
-    print(rlist)
-    
+    # print(rlist)
+
     d=dict(zip(programs,rlist))
     #print(d)
     a1 = sorted(d.items(),key = lambda x:x[1],reverse = True)
@@ -228,7 +228,7 @@ def rank_programs(current_spec, programs, m):
 
     for item in a1:
         sample_key_list.append(item[0])
-    
+
     return sample_key_list[:m]
     #return programs[:m]
 
@@ -394,24 +394,20 @@ def main():
         candidate_programs = get_string_solutions(input_spec, num_sols=num_progs)
         # 1a. rank the N programs and take the top M programs
         ranked_programs = rank_programs(input_spec,candidate_programs, top_progs)
-        
+
         # 2. we now need to generate a distinguishing candidate input, not part of the current input spec
         distinguishing_input = generate_distinguishing_input(input_spec)
-        #print("new distinguishing input: {}".format(distinguishing_input))
-        #distinguishing_input="+4 769-858-438"
+        print("new distinguishing input: {}".format(distinguishing_input))
         # 3. With the distinguishing input now available, execute all of the candidate programs on the input
         candidate_outputs = [evaluate(expression, distinguishing_input, synth_file=input_spec) for expression in ranked_programs]
-        #print(candidate_outputs)
-        #evaluate(ranked_programs[0], distinguishing_input, synth_file=input_spec)
-        #get_constraints(input_spec)
-        #candidate_outputs=['7','4','1','44']
+        # print(candidate_outputs)
         # 4. Execute the neural oracle to get the probability of the most likely correct output
         ranked_outputs = classify_outputs(distinguishing_input, candidate_outputs)
-        # ranked_outputs = classify_outputs(distinguishing_input, candidate_programs, candidate_outputs, input_spec)
+        print(ranked_outputs)
         # 5. Add the new input/output example to the specification
         add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
         # Loop and continue to refine by generating more examples...
-        
+
 
 
 
