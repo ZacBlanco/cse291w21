@@ -3,6 +3,7 @@ import math
 import textdistance
 from collections import namedtuple
 import copy
+import math
 
 
 PatternNode = namedtuple('PatternNode', ['pattern', 'chars', 'weight'])
@@ -100,7 +101,7 @@ class RString():
     def group_distance(self, other):
         return self._compute_distance(self.groupstr, other.groupstr)
 
-    def generate_mutation(self, stat_set, edit_push=1):
+    def generate_mutation(self, stat_set, edit_push=2):
         '''generates a mutation of the original string based on the stat set
         '''
         newgroups = copy.deepcopy(self.groups)
@@ -121,8 +122,9 @@ class RString():
 
 
         # choose N characters to edit/delete/insert
-        chars_to_edit = round(random.expovariate(1/float(stat_set.char.mean - 1))) + 1
-        print("editing {} chars".format(chars_to_edit))
+        lambd = stat_set.char.mean if stat_set.char.mean != 0 else 0.5
+        chars_to_edit = round(random.expovariate(abs(1/float(lambd)))) + edit_push
+        # print("editing {} chars".format(chars_to_edit))
         if chars_to_edit > 1:
             for char in range(0, chars_to_edit):
                 # loop in case group needs to be picked multiple times (e.g. edited group now becomes empty)

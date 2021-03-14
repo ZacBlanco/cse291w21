@@ -103,7 +103,7 @@ def evaluate(expr, input, synth_file='./euphony/benchmarks/string/test/phone-5-t
     eval_ctx.set_interpretation(synth_fun, expr)
     return evaluate_expression_raw(expr, eval_ctx)
 
-def generate_distinguishing_input(current_spec):
+def generate_distinguishing_input(current_spec, candidate_programs, failure_threshold=100):
     '''Generates a new distinguishing input which is not a part of the existing
     specification
 
@@ -113,7 +113,7 @@ def generate_distinguishing_input(current_spec):
 
     Returns:
         - str: a string representing the distinguishing input not part of the
-        current specification.
+        current specification. Also can return None if no distinguishing input can be found.
 
     '''
     file_sexp = parser.sexpFromFile(current_spec)
@@ -168,8 +168,31 @@ def generate_distinguishing_input(current_spec):
         stats[key] = string_builder.TextStats(mu, std)
         # print("{}: mean: {}; std: {}".format(key, mu, std))
     stat_set = string_builder.EditStatSet(stats['char'], stats['class'], stats['group'])
-    mutated = random.sample(inputs_r, 1)[0].generate_mutation(stat_set)
-    return mutated
+    distinguishing_input = None
+    loop_count = 0
+    while True:
+        distinguished = None
+        for constraint_input in inputs_r:
+            mutated = constraint_input.generate_mutation(stat_set)
+            # run input across all outputs to see if there is an input which returns more
+            # than one unique result.
+            results = set([evaluate(expression, mutated, current_spec) for expression in candidate_programs])
+            if len(results) > 1:
+                selected = input('Found a distinguishing input ({}). Programs generated outputs: {}. Acceptable? (Y)es/(n)o/(f)inish: '.format(mutated, results)).lower()
+                if selected == '' or selected == 'y':
+                    distinguishing_input = mutated
+                    distinguished = True
+                    break
+                elif selected == 'f':
+                    return mutated
+        if distinguished is not None:
+            break
+        loop_count += 1
+        if loop_count > failure_threshold:
+            break
+
+    # mutated = random.sample(inputs_r, 1)[0].generate_mutation(stat_set)
+    return distinguishing_input
 
 def classify_outputs(input, outputs):
     '''This classifies program evaluation outputs and returns a dictionary
@@ -262,6 +285,8 @@ def add_constraint_to_spec(current_spec, inputs, outputs):
 
     with open(current_spec, 'w') as f:
         f.writelines(current_spec_lines)
+
+
 def get_constraints(current_spec):
     '''Generates a new distinguishing input which is not a part of the existing
     specification
@@ -300,7 +325,7 @@ def get_constraints(current_spec):
 
 def test():
     parser = ArgumentParser()
-    parser.add_argument("-f", help="filename to generate solutions for", default='./euphony/benchmarks/string/test/phone-5-test.sl')
+    parser.add_argument("-f", help="filename to generate solutions for", default='./benchmarks/phone-5.sl')
     parser.add_argument("-n", help="number of solutions to generate", default=1)
     args = parser.parse_args()
 
@@ -365,11 +390,11 @@ def test():
             print('input: "{}" ---- output: "{}" ({})'.format(test_input, output, type(output)))
 
 def main():
-    # test()
     parser = ArgumentParser()
-    parser.add_argument("-f", help="filename to generate solutions for", default='./euphony/benchmarks/string/test/phone-5-test.sl')
+    parser.add_argument("-f", help="filename to generate solutions for", default='./benchmarks/phone-5.sl')
     parser.add_argument("-n", help="number of solutions to generate", default=3, type=int)
     parser.add_argument("-i", help="number of iterations to perform", default=5)
+    parser.add_argument('-v', '--verbose', help="Verbose output", action='store_true')
     parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=3, type=int)
 
     args = parser.parse_args()
@@ -389,26 +414,46 @@ def main():
     top_progs = args.m
     assert(top_progs <= num_progs)
 
+    iters = 0
+
     while True:
         # 1. generate up to N programs
         candidate_programs = get_string_solutions(input_spec, num_sols=num_progs)
+        if args.verbose:
+            print('Generated programs on iteration {}:'.format(iters))
+            [print(x) for x in candidate_programs]
         # 1a. rank the N programs and take the top M programs
         ranked_programs = rank_programs(input_spec,candidate_programs, top_progs)
-
+        if args.verbose:
+            print('Programs in ranked order:')
+            for i in range(len(ranked_programs)):
+                print('program rank {}: {}'.format(i, ranked_programs[i]))
         # 2. we now need to generate a distinguishing candidate input, not part of the current input spec
-        distinguishing_input = generate_distinguishing_input(input_spec)
-        print("new distinguishing input: {}".format(distinguishing_input))
+        distinguishing_input = generate_distinguishing_input(input_spec, ranked_programs)
+        if distinguishing_input == None:
+            # couldn't find a new distinguishing input, so return the highest ranked program.
+            print("No more distinguishing inputs could be generated")
+            print("=== FINAL SOLUTION ===")
+            print(ranked_programs[0])
+            print("=== FINAL SOLUTION ===")
+            break
+        # print("new distinguishing input: {}".format(distinguishing_input))
         # 3. With the distinguishing input now available, execute all of the candidate programs on the input
         candidate_outputs = [evaluate(expression, distinguishing_input, synth_file=input_spec) for expression in ranked_programs]
-        # print(candidate_outputs)
+        # [ print(prog) for prog in candidate_programs ]
         # 4. Execute the neural oracle to get the probability of the most likely correct output
         ranked_outputs = classify_outputs(distinguishing_input, candidate_outputs)
-        print(ranked_outputs)
+        # print('ranked outputs: {}'.format(ranked_outputs))
         # 5. Add the new input/output example to the specification
+        if args.verbose:
+            print('Ranked outputs for input ({}): {}'.format(distinguishing_input, ranked_outputs))
         add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
+        iters += 1
+        cont = input('Ran {} iterations. Current best solution: {}. Continue? (Y)es/(n)o: '.format(iters, ranked_programs[0])).lower()
+        if cont == 'n':
+            print('Finished synthesis. final program: {}'.format(ranked_programs[0]))
+            break
         # Loop and continue to refine by generating more examples...
-
-
 
 
 if __name__ == "__main__":

@@ -23,9 +23,6 @@
 (str.contains ntString ntString)
 ))
 ))
-(constraint (= (f "+1 769-858-438") "1"))
-(constraint (= (f "+1 769-858-438") "1"))
-(constraint (= (f "+5 769-858-438") "5"))
-(constraint (= (f "+0 769-858-438") "0"))
+(constraint (= (f "+106 769-858-438") "858"))
 
 (check-synth)
