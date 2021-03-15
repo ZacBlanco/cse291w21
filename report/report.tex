@@ -6,39 +6,91 @@
 
 \begin{document}
 
-\title{Guiding Synthesis by Learning to Generate Examples with Strings}
-%%
-%% The "author" command and its associated commands are used to define
-%% the authors and their affiliations.
-%% Of note is the shared affiliation of the first two authors, and the
-%% "authornote" and "authornotemark" commands
-%% used to denote shared contribution to the research.
-\author{Zac Blanco}
-\email{zblanco@ucsd.edu}
+\title{Guiding Synthesis by Generating Examples with Strings}
 
 \author{Chunyu Xia}
 \email{chunyuX@outlook.com}
 
+\author{Zac Blanco}
+\email{zblanco@ucsd.edu}
 
 \begin{abstract}
-This is the abstract
+
+A key challenge with program synthesis is generating enough examples in the set
+of constraints such that the program conforms to a users desired specifications.
+In this work we build a system described by \cite{laich2020guiding}. The
+original work focused on synthesizing code for UI layouts for Android
+applications. This work attempts to apply the concepts from that work into the
+domain of strings on SyGuS problems.
+
 \end{abstract}
 
 \maketitle
 
 \section{Introduction}
 
-In this paper we talk about synthesis of strings
+Program synthesis is designed to make the task of designing programs easier to
+understand for humans. Humans are inherently bad at writing sound logic. One way
+that synthesis aids is by making the decision about leaving the specific
+instructions that need to be made by a program up to a computer. Instead, humans
+can more clearly specify the desired behavior of a program by providing a set of
+input and output examples which specify the program behavior.
 
+For many cases providing input and output examples, works well. We can easily
+specify the constraints on which a particular function must operate. The main
+problem with this form of specification is that depending on the type of input;
+strings, bitvectors, or integers the particular input space for a program can be
+incredibly large. This leads to a large number of input specifications being
+required in order to fully specify the desired behavior of a program.
+
+SyGuS solvers such as Euphony \cite{lee2018accelerating} and EUsolver
+\cite{alur2017scaling} both work by providing a set of input and output
+examples. However, depending on the users' desired behavior for a number of
+particular cases, it may be difficult to find a program where the user is
+satisfied with the outputs across \textit{all} input cases.
+
+The work done by Laich et al. in \cite{laich2020guiding} have shown that it is
+possible to allow a user to guide synthesis by generating example programs,
+and then using learned statistical methods to iteratively increase the size
+of the specification in order to generate a more complete program which handles
+many more input and output specifications than a user may be able to come up
+with themselves.
+
+In this work, we attempt to replicate the system devised by Laich et al, but
+applied to the domain of strings using SyGuS grammars as used by EUSolver and
+Euphony.
+
+The paper is structured in the following manner: Section 2 talks more about the
+motivation for this work. Section 3 discusses some of the related works in this
+area of the field. Section 4 describes the system design and implementation.
+Finally, section 5 evaluates our system.
 
 \section{Motivation}
 
+
+One of the main problems with generating programs using a set of constraints
+is that the program is only guaranteed to work on the input and output constraints.
+This is similar to the way neural networks are designed. By training or testing with a
+particular set of data, the network (or synthesized program) is only guaranteed
+to work for those inputs which it was trained on.
+
+Synthesizing programs and deep learning methods with neural networks actually
+share many attributes. As mentioned above, synthesizers using Programming By
+Example (PBE) methods 
+
+Programs however also need to generalize to other examples. So, if there aren't
+enough
+
+
 \section{Related Works}
 
-\section{Implementation}
+\section{System Design and Implementation}
 
 \section{Evaluation}
 
 \section{Conclusion}
+
+\bibliographystyle{plain}
+\bibliography{refs}
 
 \end{document}
