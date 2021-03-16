@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import random
+import time
 
 import numpy as np
 
@@ -103,7 +104,7 @@ def evaluate(expr, input, synth_file='./euphony/benchmarks/string/test/phone-5-t
     eval_ctx.set_interpretation(synth_fun, expr)
     return evaluate_expression_raw(expr, eval_ctx)
 
-def generate_distinguishing_input(current_spec, candidate_programs, failure_threshold=100):
+def generate_distinguishing_input(current_spec, candidate_programs, failure_threshold=100, args=None):
     '''Generates a new distinguishing input which is not a part of the existing
     specification
 
@@ -170,28 +171,33 @@ def generate_distinguishing_input(current_spec, candidate_programs, failure_thre
     stat_set = string_builder.EditStatSet(stats['char'], stats['class'], stats['group'])
     distinguishing_input = None
     loop_count = 0
+    total_generated = 0
     while True:
         distinguished = None
         for constraint_input in inputs_r:
             mutated = constraint_input.generate_mutation(stat_set)
+            total_generated += 1
             # run input across all outputs to see if there is an input which returns more
             # than one unique result.
             results = set([evaluate(expression, mutated, current_spec) for expression in candidate_programs])
             if len(results) > 1:
-                selected = input('Found a distinguishing input ({}). Programs generated outputs: {}. Acceptable? (Y)es/(n)o/(f)inish: '.format(mutated, results)).lower()
-                if selected == '' or selected == 'y':
+                if args is not None and args.auto:
                     distinguishing_input = mutated
                     distinguished = True
                     break
-                elif selected == 'f':
-                    return mutated
+                selected = input('Found a distinguishing input ({}). Programs generated outputs: {}. Acceptable? (Y)es/(n)o/(f)inish: '.format(mutated, results)).lower()
+                if selected == '' or selected == 'y' or selected == 'f':
+                    distinguishing_input = mutated
+                    distinguished = True
+                    break
         if distinguished is not None:
             break
         loop_count += 1
         if loop_count > failure_threshold:
             break
 
-    # mutated = random.sample(inputs_r, 1)[0].generate_mutation(stat_set)
+    if args is not None and args.verbose:
+        print("returning input {}. Total generated inputs: {}".format(distinguishing_input, total_generated))
     return distinguishing_input
 
 def classify_outputs(input, outputs):
@@ -391,11 +397,12 @@ def test():
 
 def main():
     parser = ArgumentParser()
+    parser.add_argument("-a", "--auto", help="Disable input prompting", action='store_true')
     parser.add_argument("-f", help="filename to generate solutions for", default='./benchmarks/phone-5.sl')
-    parser.add_argument("-n", help="number of solutions to generate", default=3, type=int)
-    parser.add_argument("-i", help="number of iterations to perform", default=5)
-    parser.add_argument('-v', '--verbose', help="Verbose output", action='store_true')
+    parser.add_argument("-i", "--iters", help="number of iterations to perform", default=5)
     parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=3, type=int)
+    parser.add_argument("-n", help="number of solutions to generate", default=3, type=int)
+    parser.add_argument('-v', '--verbose', help="Verbose output", action='store_true')
 
     args = parser.parse_args()
 
@@ -414,9 +421,15 @@ def main():
     top_progs = args.m
     assert(top_progs <= num_progs)
 
+    final_solution = None
     iters = 0
-
+    last = None
     while True:
+        if args.verbose:
+            if last is not None:
+                now = time.time()
+                print('iteration {} time: {}s'.format(iters, now - last))
+            last = time.time()
         # 1. generate up to N programs
         candidate_programs = get_string_solutions(input_spec, num_sols=num_progs)
         if args.verbose:
@@ -429,13 +442,11 @@ def main():
             for i in range(len(ranked_programs)):
                 print('program rank {}: {}'.format(i, ranked_programs[i]))
         # 2. we now need to generate a distinguishing candidate input, not part of the current input spec
-        distinguishing_input = generate_distinguishing_input(input_spec, ranked_programs)
+        distinguishing_input = generate_distinguishing_input(input_spec, ranked_programs, args=args)
         if distinguishing_input == None:
             # couldn't find a new distinguishing input, so return the highest ranked program.
             print("No more distinguishing inputs could be generated")
-            print("=== FINAL SOLUTION ===")
-            print(ranked_programs[0])
-            print("=== FINAL SOLUTION ===")
+            final_solution = ranked_programs[0]
             break
         # print("new distinguishing input: {}".format(distinguishing_input))
         # 3. With the distinguishing input now available, execute all of the candidate programs on the input
@@ -449,11 +460,23 @@ def main():
             print('Ranked outputs for input ({}): {}'.format(distinguishing_input, ranked_outputs))
         add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
         iters += 1
+        if args.auto:
+            if iters > args.iters:
+                final_solution = ranked_programs[0]
+                break
+            continue
+
         cont = input('Ran {} iterations. Current best solution: {}. Continue? (Y)es/(n)o: '.format(iters, ranked_programs[0])).lower()
         if cont == 'n':
-            print('Finished synthesis. final program: {}'.format(ranked_programs[0]))
+            final_solution = ranked_programs[0]
             break
         # Loop and continue to refine by generating more examples...
+
+    if args.verbose:
+        if last is not None:
+            now = time.time()
+            print('iteration {} time: {}s'.format(iters, now - last))
+    print('Finished synthesis. final program: {}'.format(final_solution))
 
 
 if __name__ == "__main__":
