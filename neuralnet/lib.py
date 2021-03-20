@@ -399,7 +399,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("-a", "--auto", help="Disable input prompting", action='store_true')
     parser.add_argument("-f", help="filename to generate solutions for", default='./benchmarks/phone-5.sl')
-    parser.add_argument("-i", "--iters", help="number of iterations to perform", default=5)
+    parser.add_argument("-i", "--iters", help="number of iterations to perform", default=100)
     parser.add_argument("-m", help="the number M top programs to pick from program ranking. Must be <= -n", default=3, type=int)
     parser.add_argument("-n", help="number of solutions to generate", default=3, type=int)
     parser.add_argument('-v', '--verbose', help="Verbose output", action='store_true')
@@ -435,6 +435,9 @@ def main():
         if args.verbose:
             print('Generated programs on iteration {}:'.format(iters))
             [print(x) for x in candidate_programs]
+        if iters + 1 >= int(args.iters):
+            final_solution = candidate_programs[0]
+            break
         # 1a. rank the N programs and take the top M programs
         ranked_programs = rank_programs(input_spec,candidate_programs, top_progs)
         if args.verbose:
@@ -461,7 +464,7 @@ def main():
         add_constraint_to_spec(input_spec, distinguishing_input, ranked_outputs[0])
         iters += 1
         if args.auto:
-            if iters > args.iters:
+            if iters > int(args.iters):
                 final_solution = ranked_programs[0]
                 break
             continue

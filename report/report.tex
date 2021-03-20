@@ -1,9 +1,5 @@
 \documentclass[sigconf,authordraft]{acmart}
 
-
-
-
-
 \begin{document}
 
 \title{Guiding Synthesis by Generating Examples with Strings}
@@ -68,15 +64,18 @@ Finally, section 5 evaluates our system.
 \section{Motivation}
 
 
-One of the main problems with generating programs using a set of constraints
-is that the program is only guaranteed to work on the input and output constraints.
-This is similar to the way neural networks are designed. By training or testing with a
-particular set of data, the network (or synthesized program) is only guaranteed
-to work for those inputs which it was trained on.
+One of the main problems with generating programs using a set of constraints is
+that the program is only guaranteed to work on the input and output constraints.
+This is similar to the way neural networks are designed. By training or testing
+with a particular set of data, the network (or synthesized program) is only
+guaranteed to work for those inputs which it was trained on.
 
 Synthesizing programs and deep learning methods with neural networks actually
-share many attributes. As mentioned above, synthesizers using Programming By
-Example (PBE) methods 
+share many of the same problems when it comes to training and performing well on
+a limited set of data. As mentioned above, synthesizers using Programming By
+Example (PBE) methods and neural networks are trained on a set of training data
+but also need to generalize well across the entire input population which is
+generally not available for training
 
 Programs however also need to generalize to other examples. So, if there aren't
 enough
